@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.8 (2026-08-30)
+
+### Features
+
+- Add four persistent FreeText style presets with font, border, and background colors that are written into the saved PDF appearance.
+
+## 0.2.7 (2026-08-29)
+
+### Enhancements
+
+- Add a keyboard- and pointer-adjustable right-side comment-results width and reserve that width in the PDF viewport so pages remain centered while the panel is open.
+
+## 0.2.6 (2026-08-29)
+
+### Enhancements
+
+- Move comment-only search results into a right-side, independently scrollable panel without changing PDF loading or document search behavior.
+
+## 0.2.5 (2026-08-29)
+
+### Bug Fixes
+
+- Fetch PDF.js CMaps, fonts, and WASM assets in the Webview before sending them to the Worker, avoiding `file+` resource-host failures that could leave image-heavy PDF pages blank.
+
+## 0.2.4 (2026-08-29)
+
+### Bug Fixes
+
+- Bootstrap the PDF.js worker from a same-Webview `blob:` URL so VS Code resource hosts containing `+` do not get rejected as invalid CSP sources.
+
+## 0.2.3 (2026-08-29)
+
+### Features
+
+- Add comments-only annotation search with result navigation, result counts, and high-visibility highlighting.
+
+### Bug Fixes
+
+- Allow the exact VS Code Webview resource origin required by the bundled PDF.js worker, preventing PDF documents from remaining blank at `0 / 0`.
+
 ## [0.2.1](https://github.com/mathematic-inc/vscode-pdf/compare/v0.2.0...v0.2.1) (2026-08-27)
 
 ### Bug Fixes

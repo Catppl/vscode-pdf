@@ -1,7 +1,7 @@
 {
   "name": "vscode-pdf",
   "displayName": "PDF Viewer",
-  "version": "0.2.1",
+  "version": "0.2.8",
   "description": "Portable document format (PDF) viewer for Visual Studio Code.",
   "categories": [
     "Visualization",
@@ -24,12 +24,14 @@
   "main": "./dist/extension.js",
   "scripts": {
     "build": "tsup",
-    "check": "pnpm run typecheck && pnpm run check:pdfjs && oxlint --deny-warnings . && oxfmt --check .",
+    "check": "pnpm run typecheck && pnpm run check:pdfjs && pnpm run test:comment-search && pnpm run test:free-text-presets && oxlint --deny-warnings . && oxfmt --check .",
     "check:pdfjs": "node tools/check_pdfjs.mjs",
     "fix": "oxlint --fix --deny-warnings . && oxfmt --write .",
     "format": "oxfmt --write .",
     "lint": "oxlint --deny-warnings .",
     "package": "pnpm run check:pdfjs && tsup --minify",
+    "test:comment-search": "node --test tools/comment-search.test.mjs",
+    "test:free-text-presets": "node --test tools/free-text-presets.test.mjs tools/free-text-pdf-persistence.test.mjs",
     "prepare": "if [ -z \"$CI\" ] && command -v hk >/dev/null 2>&1; then hk install; fi",
     "typecheck": "tsc --noEmit",
     "vscode:prepublish": "pnpm run package",
@@ -91,6 +93,91 @@
             "Layers"
           ],
           "description": "Sidebar panel to show when opening a PDF."
+        },
+        "pdf.freeTextPresets": {
+          "type": "array",
+          "scope": "window",
+          "minItems": 0,
+          "maxItems": 4,
+          "description": "Four persistent FreeText style presets. A null backgroundColor means transparent fill.",
+          "default": [
+            {
+              "name": "Preset 1",
+              "fontSize": 10,
+              "fontColor": "#000000",
+              "borderWidth": 1,
+              "borderColor": "#FF0000",
+              "backgroundColor": "#FFFFFF"
+            },
+            {
+              "name": "Preset 2",
+              "fontSize": 10,
+              "fontColor": "#FF0000",
+              "borderWidth": 1,
+              "borderColor": "#0066FF",
+              "backgroundColor": "#FFFF99"
+            },
+            {
+              "name": "Preset 3",
+              "fontSize": 10,
+              "fontColor": "#0000FF",
+              "borderWidth": 1,
+              "borderColor": "#0000FF",
+              "backgroundColor": "#EAF3FF"
+            },
+            {
+              "name": "Preset 4",
+              "fontSize": 10,
+              "fontColor": "#000000",
+              "borderWidth": 0,
+              "borderColor": "#000000",
+              "backgroundColor": null
+            }
+          ],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "fontSize",
+              "fontColor",
+              "borderWidth",
+              "borderColor",
+              "backgroundColor"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "fontSize": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 100
+              },
+              "fontColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "borderWidth": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "borderColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "backgroundColor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              }
+            }
+          }
         }
       }
     },
@@ -108,7 +195,7 @@
   },
   "devDependencies": {
     "@types/node": "26.4.0",
-    "@types/vscode": "1.134.0",
+    "@types/vscode": "1.120.0",
     "@vscode/vsce": "^3.9.2",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
@@ -117,7 +204,7 @@
   },
   "packageManager": "pnpm@11.24.0+sha512.bd27e345e976dcb0be0b7a1228217b049a817e21b1f355c90dbe7dc46671895a8bc1e6d06c24554505ea93ea0b45f489a27ec1bfbc8de6a9659fca0f16fa0000",
   "engines": {
-    "vscode": "^1.134.0"
+    "vscode": "^1.120.0"
   },
   "icon": "icon.png"
 }

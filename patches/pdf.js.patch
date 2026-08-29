@@ -1,4 +1,373 @@
+diff --git a/build/pdf.mjs b/build/pdf.mjs
+index d4faaba..bb91718 100644
+--- a/build/pdf.mjs
++++ b/build/pdf.mjs
+@@ -6116,6 +6116,9 @@ const AnnotationEditorParamsType = {
+   FREETEXT_SIZE: 11,
+   FREETEXT_COLOR: 12,
+   FREETEXT_OPACITY: 13,
++  FREETEXT_BORDER_WIDTH: 14,
++  FREETEXT_BORDER_COLOR: 15,
++  FREETEXT_BACKGROUND_COLOR: 16,
+   INK_COLOR: 21,
+   INK_THICKNESS: 22,
+   INK_OPACITY: 23,
+@@ -27377,11 +27380,17 @@ class FreeTextEditor extends AnnotationEditor {
+   #editorDivId = `${this.id}-editor`;
+   #editModeAC = null;
+   #fontSize;
++  #borderWidth;
++  #borderColor;
++  #backgroundColor;
+   _colorPicker = null;
+   static _freeTextDefaultContent = "";
+   static _internalPadding = 0;
+   static _defaultColor = null;
+   static _defaultFontSize = 10;
++  static _defaultBorderWidth = 0;
++  static _defaultBorderColor = "#000000";
++  static _defaultBackgroundColor = null;
+   static get _keyboardManager() {
+     const proto = FreeTextEditor.prototype;
+     const arrowChecker = self => self.isEmpty();
+@@ -27424,6 +27433,9 @@ class FreeTextEditor extends AnnotationEditor {
+     });
+     this.color = params.color || FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor;
+     this.#fontSize = params.fontSize || FreeTextEditor._defaultFontSize;
++    this.#borderWidth = params.borderWidth ?? FreeTextEditor._defaultBorderWidth;
++    this.#borderColor = params.borderColor || FreeTextEditor._defaultBorderColor;
++    this.#backgroundColor = params.backgroundColor ?? FreeTextEditor._defaultBackgroundColor;
+     if (!this.annotationElementId) {
+       this._uiManager.a11yAlert(AnnotationEditor._l10nAlert.freetext);
+     }
+@@ -27442,6 +27454,15 @@ class FreeTextEditor extends AnnotationEditor {
+       case AnnotationEditorParamsType.FREETEXT_COLOR:
+         FreeTextEditor._defaultColor = value;
+         break;
++      case AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH:
++        FreeTextEditor._defaultBorderWidth = value;
++        break;
++      case AnnotationEditorParamsType.FREETEXT_BORDER_COLOR:
++        FreeTextEditor._defaultBorderColor = value;
++        break;
++      case AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR:
++        FreeTextEditor._defaultBackgroundColor = value;
++        break;
+     }
+   }
+   updateParams(type, value) {
+@@ -27452,13 +27473,22 @@ class FreeTextEditor extends AnnotationEditor {
+       case AnnotationEditorParamsType.FREETEXT_COLOR:
+         this.#updateColor(value);
+         break;
++      case AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH:
++        this.#updateBorderWidth(value);
++        break;
++      case AnnotationEditorParamsType.FREETEXT_BORDER_COLOR:
++        this.#updateBorderColor(value);
++        break;
++      case AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR:
++        this.#updateBackgroundColor(value);
++        break;
+     }
+   }
+   static get defaultPropertiesToUpdate() {
+-    return [[AnnotationEditorParamsType.FREETEXT_SIZE, FreeTextEditor._defaultFontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor]];
++    return [[AnnotationEditorParamsType.FREETEXT_SIZE, FreeTextEditor._defaultFontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor], [AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH, FreeTextEditor._defaultBorderWidth], [AnnotationEditorParamsType.FREETEXT_BORDER_COLOR, FreeTextEditor._defaultBorderColor], [AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR, FreeTextEditor._defaultBackgroundColor]];
+   }
+   get propertiesToUpdate() {
+-    return [[AnnotationEditorParamsType.FREETEXT_SIZE, this.#fontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, this.color]];
++    return [[AnnotationEditorParamsType.FREETEXT_SIZE, this.#fontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, this.color], [AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH, this.#borderWidth], [AnnotationEditorParamsType.FREETEXT_BORDER_COLOR, this.#borderColor], [AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR, this.#backgroundColor]];
+   }
+   get toolbarButtons() {
+     this._colorPicker ||= new BasicColorPicker(this);
+@@ -27506,6 +27536,67 @@ class FreeTextEditor extends AnnotationEditor {
+       keepUndo: true
+     });
+   }
++  #applyBoxStyle() {
++    if (!this.editorDiv) {
++      return;
++    }
++    const style = this.editorDiv.style;
++    const hasBox = this.#borderWidth > 0 || this.#backgroundColor !== null;
++    style.boxSizing = "border-box";
++    style.padding = hasBox ? `calc(${FreeTextEditor._internalPadding}px * var(--total-scale-factor))` : "";
++    style.border = this.#borderWidth > 0 ? `calc(${this.#borderWidth}px * var(--total-scale-factor)) solid ${this.#borderColor}` : "none";
++    style.backgroundColor = this.#backgroundColor || "transparent";
++  }
++  #updateBorderWidth(borderWidth) {
++    const setBorderWidth = value => {
++      this.#borderWidth = value;
++      this.#applyBoxStyle();
++      this.#setEditorDimensions();
++    };
++    const savedBorderWidth = this.#borderWidth;
++    this.addCommands({
++      cmd: setBorderWidth.bind(this, borderWidth),
++      undo: setBorderWidth.bind(this, savedBorderWidth),
++      post: this._uiManager.updateUI.bind(this._uiManager, this),
++      mustExec: true,
++      type: AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH,
++      overwriteIfSameType: true,
++      keepUndo: true
++    });
++  }
++  #updateBorderColor(borderColor) {
++    const setBorderColor = value => {
++      this.#borderColor = value;
++      this.#applyBoxStyle();
++    };
++    const savedBorderColor = this.#borderColor;
++    this.addCommands({
++      cmd: setBorderColor.bind(this, borderColor),
++      undo: setBorderColor.bind(this, savedBorderColor),
++      post: this._uiManager.updateUI.bind(this._uiManager, this),
++      mustExec: true,
++      type: AnnotationEditorParamsType.FREETEXT_BORDER_COLOR,
++      overwriteIfSameType: true,
++      keepUndo: true
++    });
++  }
++  #updateBackgroundColor(backgroundColor) {
++    const setBackgroundColor = value => {
++      this.#backgroundColor = value;
++      this.#applyBoxStyle();
++      this.#setEditorDimensions();
++    };
++    const savedBackgroundColor = this.#backgroundColor;
++    this.addCommands({
++      cmd: setBackgroundColor.bind(this, backgroundColor),
++      undo: setBackgroundColor.bind(this, savedBackgroundColor),
++      post: this._uiManager.updateUI.bind(this._uiManager, this),
++      mustExec: true,
++      type: AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR,
++      overwriteIfSameType: true,
++      keepUndo: true
++    });
++  }
+   _translateEmpty(x, y) {
+     this._uiManager.translateSelectedEditors(x, y, true);
+   }
+@@ -27734,6 +27825,7 @@ class FreeTextEditor extends AnnotationEditor {
+     } = this.editorDiv;
+     style.fontSize = `calc(${this.#fontSize}px * var(--total-scale-factor))`;
+     style.color = this.color;
++    this.#applyBoxStyle();
+     this.div.append(this.editorDiv);
+     this.overlayDiv = document.createElement("div");
+     this.overlayDiv.classList.add("overlay", "enabled");
+@@ -27902,7 +27994,10 @@ class FreeTextEditor extends AnnotationEditor {
+           richText,
+           contentsObj,
+           creationDate,
+-          modificationDate
++          modificationDate,
++          borderStyle,
++          color: annotationColor,
++          backgroundColor
+         },
+         textContent,
+         textPosition,
+@@ -27919,6 +28014,9 @@ class FreeTextEditor extends AnnotationEditor {
+         annotationType: AnnotationEditorType.FREETEXT,
+         color: Array.from(fontColor),
+         fontSize,
++        borderWidth: borderStyle?.width || 0,
++        borderColor: Array.from(annotationColor || [0, 0, 0]),
++        backgroundColor: backgroundColor ? Array.from(backgroundColor) : null,
+         value: textContent.join("\n"),
+         position: textPosition,
+         pageIndex: pageNumber - 1,
+@@ -27937,6 +28035,9 @@ class FreeTextEditor extends AnnotationEditor {
+     const editor = await super.deserialize(data, parent, uiManager);
+     editor.#fontSize = data.fontSize;
+     editor.color = Util.makeHexColor(...data.color);
++    editor.#borderWidth = data.borderWidth ?? 0;
++    editor.#borderColor = Util.makeHexColor(...(data.borderColor || [0, 0, 0]));
++    editor.#backgroundColor = data.backgroundColor ? Util.makeHexColor(...data.backgroundColor) : null;
+     editor.#content = FreeTextEditor.#deserializeContent(data.value);
+     editor._initialData = initialData;
+     if (data.comment) {
+@@ -27952,9 +28053,14 @@ class FreeTextEditor extends AnnotationEditor {
+       return this.serializeDeleted();
+     }
+     const color = AnnotationEditor._colorManager.convert(this.isAttachedToDOM ? getComputedStyle(this.editorDiv).color : this.color);
++    const borderColor = AnnotationEditor._colorManager.convert(this.#borderColor);
++    const backgroundColor = this.#backgroundColor ? AnnotationEditor._colorManager.convert(this.#backgroundColor) : null;
+     const serialized = Object.assign(super.serialize(isForCopying), {
+       color,
+       fontSize: this.#fontSize,
++      borderWidth: this.#borderWidth,
++      borderColor,
++      backgroundColor,
+       value: this.#serializeContent()
+     });
+     this.addComment(serialized);
+@@ -27973,9 +28079,13 @@ class FreeTextEditor extends AnnotationEditor {
+       value,
+       fontSize,
+       color,
++      borderWidth,
++      borderColor,
++      backgroundColor,
+       pageIndex
+     } = this._initialData;
+-    return this.hasEditedComment || this._hasBeenMoved || serialized.value !== value || serialized.fontSize !== fontSize || serialized.color.some((c, i) => c !== color[i]) || serialized.pageIndex !== pageIndex;
++    const hasDifferentBackground = backgroundColor === null ? serialized.backgroundColor !== null : serialized.backgroundColor === null || serialized.backgroundColor.some((c, i) => c !== backgroundColor[i]);
++    return this.hasEditedComment || this._hasBeenMoved || serialized.value !== value || serialized.fontSize !== fontSize || serialized.color.some((c, i) => c !== color[i]) || serialized.borderWidth !== borderWidth || serialized.borderColor.some((c, i) => c !== borderColor[i]) || hasDifferentBackground || serialized.pageIndex !== pageIndex;
+   }
+   renderAnnotationElement(annotation) {
+     const content = super.renderAnnotationElement(annotation);
+@@ -27987,6 +28097,10 @@ class FreeTextEditor extends AnnotationEditor {
+     } = content;
+     style.fontSize = `calc(${this.#fontSize}px * var(--total-scale-factor))`;
+     style.color = this.color;
++    style.boxSizing = "border-box";
++    style.padding = `calc(${FreeTextEditor._internalPadding}px * var(--total-scale-factor))`;
++    style.border = this.#borderWidth > 0 ? `calc(${this.#borderWidth}px * var(--total-scale-factor)) solid ${this.#borderColor}` : "none";
++    style.backgroundColor = this.#backgroundColor || "transparent";
+     content.replaceChildren();
+     for (const line of this.#content.split("\n")) {
+       const div = document.createElement("div");
+@@ -34438,4 +34552,4 @@ globalThis.pdfjsLib = {
+ 
+ export { AbortException, AnnotationEditorLayer, AnnotationEditorParamsType, AnnotationEditorType, AnnotationEditorUIManager, AnnotationLayer, AnnotationMode, AnnotationType, CSSConstants, ColorPicker, DOMSVGFactory, DrawLayer, FeatureTest, GlobalWorkerOptions, ImageKind, InvalidPDFException, MathClamp, OPS, OutputScale, PDFDataRangeTransport, PDFDateString, PDFWorker, PasswordException, PasswordResponses, PermissionFlag, PixelsPerInch, RenderingCancelledException, ResponseException, SignatureExtractor, SupportedImageMimeTypes, TextLayer, TextLayerImages, TouchManager, Util, VerbosityLevel, XfaLayer, applyOpacity, build, createValidAbsoluteUrl, fetchData, findContrastColor, getDocument, getFilenameFromUrl, getPdfFilenameFromUrl, getRGB, getRGBA, getUuid, isDataScheme, isPdfFile, isValidExplicitDest, makeArr, makeMap, makeObj, makeSet, noContextMenu, normalizeUnicode, renderRichText, setLayerDimensions, shadow, stopEvent, updateUrlHash, version };
+ 
+-//# sourceMappingURL=pdf.mjs.map
+\ No newline at end of file
++//# sourceMappingURL=pdf.mjs.map
+diff --git a/build/pdf.worker.mjs b/build/pdf.worker.mjs
+index ff381bb..3c7b5f7 100644
+--- a/build/pdf.worker.mjs
++++ b/build/pdf.worker.mjs
+@@ -61571,8 +61571,11 @@ class FreeTextAnnotation extends MarkupAnnotation {
+     this.data.noHTML = false;
+     const {
+       annotationGlobals,
++      dict,
+       xref
+     } = params;
++    this.data.borderColor = this.data.color;
++    this.data.backgroundColor = getRgbColor(dict.getArray("IC"), null);
+     this.setDefaultAppearance(params);
+     this._hasAppearance = !!this.appearance;
+     if (this._hasAppearance) {
+@@ -61616,6 +61619,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
+   }) {
+     const {
+       color,
++      borderWidth = 0,
++      borderColor = [0, 0, 0],
++      backgroundColor = null,
+       date,
+       fontSize,
+       oldAnnotation,
+@@ -61636,7 +61642,17 @@ class FreeTextAnnotation extends MarkupAnnotation {
+     freetext.set("DA", da);
+     freetext.setIfDefined("Contents", stringToAsciiOrUTF16BE(value));
+     freetext.setIfNotExists("F", 4);
+-    freetext.setIfNotExists("Border", [0, 0, 0]);
++    freetext.set("Border", [0, 0, borderWidth]);
++    const borderStyle = new Dict(xref);
++    borderStyle.set("W", borderWidth);
++    borderStyle.set("S", Name.get("S"));
++    freetext.set("BS", borderStyle);
++    freetext.setIfArray("C", getPdfColorArray(borderColor));
++    if (backgroundColor) {
++      freetext.setIfArray("IC", getPdfColorArray(backgroundColor));
++    } else {
++      freetext.delete("IC");
++    }
+     freetext.setIfNumber("Rotate", rotation);
+     freetext.setIfDefined("T", stringToAsciiOrUTF16BE(user));
+     if (apRef || ap) {
+@@ -61654,6 +61670,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
+     } = params;
+     const {
+       color,
++      borderWidth = 0,
++      borderColor = [0, 0, 0],
++      backgroundColor = null,
+       fontSize,
+       rect,
+       rotation,
+@@ -61685,6 +61704,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
+     if (rotation % 180 !== 0) {
+       [w, h] = [h, w];
+     }
++    const padding = borderWidth > 0 || backgroundColor ? borderWidth + 2 : 0;
++    const availableWidth = Math.max(1, w - 2 * padding);
++    const availableHeight = Math.max(1, h - 2 * padding);
+     const lines = value.split("\n");
+     const scale = fontSize / 1000;
+     let totalWidth = -Infinity;
+@@ -61703,40 +61725,47 @@ class FreeTextAnnotation extends MarkupAnnotation {
+       }
+       totalWidth = Math.max(totalWidth, lineWidth);
+     }
+-    const hscale = totalWidth > w ? w / totalWidth : 1;
++    const hscale = totalWidth > availableWidth ? availableWidth / totalWidth : 1;
+     let vscale = 1;
+     const lineHeight = (/* inlined export .LINE_FACTOR */1.35) * fontSize;
+     const lineAscent = ((/* inlined export .LINE_FACTOR */1.35) - (/* inlined export .LINE_DESCENT_FACTOR */0.35)) * fontSize;
+     const totalHeight = lineHeight * lines.length;
+-    if (totalHeight > h) {
+-      vscale = h / totalHeight;
++    if (totalHeight > availableHeight) {
++      vscale = availableHeight / totalHeight;
+     }
+     const fscale = Math.min(hscale, vscale);
+     const newFontSize = fontSize * fscale;
+-    let firstPoint, clipBox, matrix;
++    let clipBox, matrix;
+     switch (rotation) {
+       case 0:
+         matrix = [1, 0, 0, 1];
+         clipBox = [rect[0], rect[1], w, h];
+-        firstPoint = [rect[0], rect[3] - lineAscent];
+         break;
+       case 90:
+         matrix = [0, 1, -1, 0];
+         clipBox = [rect[1], -rect[2], w, h];
+-        firstPoint = [rect[1], -rect[0] - lineAscent];
+         break;
+       case 180:
+         matrix = [-1, 0, 0, -1];
+         clipBox = [-rect[2], -rect[3], w, h];
+-        firstPoint = [-rect[2], -rect[1] - lineAscent];
+         break;
+       case 270:
+         matrix = [0, -1, 1, 0];
+         clipBox = [-rect[3], rect[0], w, h];
+-        firstPoint = [-rect[3], rect[2] - lineAscent];
+         break;
+     }
+-    const buffer = ["q", `${matrix.join(" ")} 0 0 cm`, `${clipBox.join(" ")} re W n`, `BT`, `${getPdfColor(color, true)}`, `0 Tc /Helv ${numberToString(newFontSize)} Tf`];
++    const [clipX, clipY, clipWidth, clipHeight] = clipBox;
++    const firstPoint = [clipX + padding, clipY + clipHeight - padding - lineAscent];
++    const buffer = ["q", `${matrix.join(" ")} 0 0 cm`, `${clipBox.join(" ")} re W n`];
++    const borderInset = borderWidth / 2;
++    const box = `${numberToString(clipX + borderInset)} ${numberToString(clipY + borderInset)} ${numberToString(Math.max(0, clipWidth - borderWidth))} ${numberToString(Math.max(0, clipHeight - borderWidth))} re`;
++    if (backgroundColor) {
++      buffer.push(getPdfColor(backgroundColor, true), box, "f");
++    }
++    if (borderWidth > 0) {
++      buffer.push(getPdfColor(borderColor, false), `${numberToString(borderWidth)} w`, box, "S");
++    }
++    buffer.push("BT", `${getPdfColor(color, true)}`, `0 Tc /Helv ${numberToString(newFontSize)} Tf`);
+     buffer.push(`${firstPoint.join(" ")} Td (${escapeString(encodedLines[0])}) Tj`);
+     const vShift = numberToString(lineHeight);
+     for (let i = 1, ii = encodedLines.length; i < ii; i++) {
+@@ -71069,4 +71098,4 @@ globalThis.pdfjsWorker = {
+ 
+ export { WorkerMessageHandler };
+ 
+-//# sourceMappingURL=pdf.worker.mjs.map
+\ No newline at end of file
++//# sourceMappingURL=pdf.worker.mjs.map
 diff --git a/web/viewer.html b/web/viewer.html
+index fb601a1..25d036b 100644
 --- a/web/viewer.html
 +++ b/web/viewer.html
 @@ -27,11 +27,6 @@ See https://github.com/adobe-type-tools/cmap-resources
@@ -14,6 +383,7 @@ diff --git a/web/viewer.html b/web/viewer.html
  <link rel="resource" type="application/l10n" href="locale/locale.json" />
  <script src="../build/pdf.mjs" type="module"></script>
 diff --git a/web/viewer.mjs b/web/viewer.mjs
+index 5e5ca50..5c5d13e 100644
 --- a/web/viewer.mjs
 +++ b/web/viewer.mjs
 @@ -24091,7 +24091,9 @@ const PDFViewerApplication = {
@@ -27,7 +397,7 @@ diff --git a/web/viewer.mjs b/web/viewer.mjs
        eventBus,
        externalLinkTarget: AppOptions.get("externalLinkTarget"),
        externalLinkRel: AppOptions.get("externalLinkRel"),
-@@ -26381,4 +26383,31 @@ if (document.readyState === "interactive" || document.readyState === "complete") {
+@@ -26381,4 +26383,35 @@ if (document.readyState === "interactive" || document.readyState === "complete")
  
  export { PDFViewerApplication, AppConstants as PDFViewerApplicationConstants, AppOptions as PDFViewerApplicationOptions };
  
@@ -41,6 +411,10 @@ diff --git a/web/viewer.mjs b/web/viewer.mjs
 +    super(...args);
 +    this.#vscode = vscode;
 +    this.#resourceRoot = resourceRoot;
++  }
++
++  postMessage(message) {
++    this.#vscode.postMessage(message);
 +  }
 +
 +  addLinkAttributes(link, url, newWindow = false) {

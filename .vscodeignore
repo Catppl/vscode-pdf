@@ -23,9 +23,13 @@ vsc-extension-quickstart.md
 hk.pkl
 mise.toml
 patches/**
+COMMENTS_ONLY_SEARCH_IMPLEMENTATION_PLAN.md
+COMMENTS_ONLY_SEARCH_UI_ENHANCEMENT_PLAN.md
+FREETEXT_PRESETS_IMPLEMENTATION_PLAN.md
 pdfjs_version.txt
 pnpm-lock.yaml
 pnpm-workspace.yaml
 release-please-config.json
 third_party/**
 tools/**
+tmp/**

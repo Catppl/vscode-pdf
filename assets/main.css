@@ -27,3 +27,361 @@ body.vscode-dark,
 body.vscode-high-contrast {
   color-scheme: dark;
 }
+
+/* Keep native PDF.js matches visible without changing its search behavior. */
+.textLayer .highlight {
+  --highlight-bg-color: rgb(255 242 0 / 0.78);
+  --highlight-selected-bg-color: rgb(255 214 0 / 0.96);
+}
+
+.textLayer .highlight.selected {
+  outline: 2px solid rgb(174 112 0);
+  outline-offset: 1px;
+}
+
+#findCommentResultsPanel {
+  --comment-search-results-width: 360px;
+  position: absolute;
+  inset-block-start: var(--toolbar-height);
+  inset-inline-end: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: var(--comment-search-results-width);
+  height: calc(100% - var(--toolbar-height));
+  max-width: 100%;
+  color: var(--main-color, CanvasText);
+  background: var(--body-bg-color, Canvas);
+  border-inline-start: 1px solid var(--field-border-color, CanvasText);
+  box-shadow: -4px 0 12px rgb(0 0 0 / 0.25);
+  overflow: hidden;
+}
+
+#outerContainer.commentSearchResultsOpen #viewerContainer:not(.pdfPresentationMode),
+#outerContainer.commentSearchResultsOpen #loadingBar {
+  inset-inline-end: var(--comment-search-results-width, 360px);
+  transition-property: inset-inline-start, inset-inline-end;
+}
+
+#outerContainer.commentSearchResultsResizing #viewerContainer:not(.pdfPresentationMode),
+#outerContainer.commentSearchResultsResizing #loadingBar {
+  transition-duration: 0s;
+}
+
+#findCommentResultsPanel[hidden] {
+  display: none;
+}
+
+#findCommentResultsPanel .commentSearchResultsHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--field-border-color, CanvasText);
+}
+
+#findCommentResultsPanel .commentSearchResultsResizer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 2;
+  width: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+#findCommentResultsPanel .commentSearchResultsResizer::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 3px;
+  width: 2px;
+  content: "";
+  background: var(--focus-ring-color, #0060df);
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+#findCommentResultsPanel .commentSearchResultsResizer:hover::after,
+#findCommentResultsPanel .commentSearchResultsResizer:focus-visible::after,
+#findCommentResultsPanel.resizing .commentSearchResultsResizer::after {
+  opacity: 1;
+}
+
+#findCommentResultsPanel.resizing,
+#findCommentResultsPanel.resizing * {
+  user-select: none;
+}
+
+#findCommentResultsPanel .commentSearchResultsTitle {
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+#findCommentResultsPanel .commentSearchResultsToggle {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 4px 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#findCommentResultsPanel .commentSearchResultsToggle:hover,
+#findCommentResultsPanel .commentSearchResultsToggle:focus-visible {
+  background: rgb(127 127 127 / 0.18);
+  border-color: var(--field-border-color, CanvasText);
+}
+
+#findCommentResultsPanel .commentSearchResultsContent {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+#findCommentResultsPanel .commentSearchResultsSummary {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  color: var(--main-color, CanvasText);
+  font-size: 0.9em;
+  border-bottom: 1px solid var(--field-border-color, CanvasText);
+}
+
+#findCommentResultsPanel .commentSearchResultsList {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+
+#findCommentResultsPanel .commentSearchResult {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+#findCommentResultsPanel .commentSearchResult:hover,
+#findCommentResultsPanel .commentSearchResult:focus-visible {
+  background: rgb(127 127 127 / 0.18);
+}
+
+#findCommentResultsPanel .commentSearchResultCurrent {
+  border-color: rgb(255 194 0 / 0.9);
+  background: rgb(255 242 0 / 0.18);
+}
+
+#findCommentResultsPanel .commentSearchResultTitle {
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+#findCommentResultsPanel .commentSearchResultSnippet {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+#findCommentResultsPanel .commentSearchSnippetHit,
+.annotationLayer .commentSearchAnnotationHit {
+  padding: 0 1px;
+  color: #111;
+  background: #fff200;
+  border-radius: 2px;
+}
+
+.annotationLayer .commentSearchAnnotationTarget {
+  outline: 3px solid #fff200;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgb(255 194 0 / 0.65);
+}
+
+@media (forced-colors: active) {
+  .textLayer .highlight {
+    --highlight-bg-color: Highlight;
+    --highlight-selected-bg-color: Highlight;
+    color: HighlightText;
+  }
+
+  #findCommentResultsPanel .commentSearchSnippetHit,
+  .annotationLayer .commentSearchAnnotationHit {
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  .annotationLayer .commentSearchAnnotationTarget {
+    outline: 2px solid Highlight;
+    box-shadow: none;
+  }
+}
+
+#freeTextPresetButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline: 4px;
+}
+
+.freeTextPresetButton {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.freeTextPresetButton:hover {
+  background: var(--toolbarButton-hover-background, rgb(127 127 127 / 0.2));
+}
+
+.freeTextPresetButton:focus-visible,
+.freeTextPresetButton.active {
+  outline: 2px solid var(--focus-ring-color, #0060df);
+  outline-offset: 1px;
+}
+
+.freeTextPresetPreview {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2px solid;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.freeTextPresetPreview.transparent {
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #d8d8d8 25%, transparent 25%),
+    linear-gradient(-45deg, #d8d8d8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d8d8d8 75%),
+    linear-gradient(-45deg, transparent 75%, #d8d8d8 75%);
+  background-position:
+    0 0,
+    0 4px,
+    4px -4px,
+    -4px 0;
+  background-size: 8px 8px;
+}
+
+.freeTextPresetDialog {
+  width: min(360px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--main-color);
+  background: var(--doorhanger-bg-color, #fff);
+  border: 1px solid var(--doorhanger-border-color, #8f8f9d);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.freeTextPresetDialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+.freeTextPresetForm {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  font: message-box;
+}
+
+.freeTextPresetForm h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.freeTextPresetForm label:not(.freeTextPresetCheckbox) {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.freeTextPresetForm input[type="text"],
+.freeTextPresetForm input[type="number"] {
+  min-width: 0;
+  padding: 4px 6px;
+  color: inherit;
+  background: var(--field-bg-color, Canvas);
+  border: 1px solid var(--field-border-color, GrayText);
+  border-radius: 3px;
+}
+
+.freeTextPresetForm input[type="color"] {
+  width: 48px;
+  height: 28px;
+  padding: 1px;
+  justify-self: end;
+}
+
+.freeTextPresetCheckbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.freeTextPresetError {
+  min-height: 1em;
+  color: #c00;
+  font-size: 12px;
+}
+
+.freeTextPresetDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.freeTextPresetDialogActions button {
+  min-width: 72px;
+  padding: 5px 10px;
+}
+
+.freeTextPresetDialogActions .primary {
+  color: ButtonText;
+  background: ButtonFace;
+  border: 1px solid ButtonBorder;
+}
+
+@media (forced-colors: active) {
+  .freeTextPresetButton:focus-visible,
+  .freeTextPresetButton.active {
+    outline-color: Highlight;
+  }
+
+  .freeTextPresetPreview.transparent {
+    background: Canvas;
+  }
+}

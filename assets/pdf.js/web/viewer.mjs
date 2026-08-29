@@ -26393,6 +26393,10 @@ class VSCodeLinkService extends PDFLinkService {
     this.#resourceRoot = resourceRoot;
   }
 
+  postMessage(message) {
+    this.#vscode.postMessage(message);
+  }
+
   addLinkAttributes(link, url, newWindow = false) {
     super.addLinkAttributes(link, url, newWindow);
     if (

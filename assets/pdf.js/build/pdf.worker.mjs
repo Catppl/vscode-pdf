@@ -61571,8 +61571,11 @@ class FreeTextAnnotation extends MarkupAnnotation {
     this.data.noHTML = false;
     const {
       annotationGlobals,
+      dict,
       xref
     } = params;
+    this.data.borderColor = this.data.color;
+    this.data.backgroundColor = getRgbColor(dict.getArray("IC"), null);
     this.setDefaultAppearance(params);
     this._hasAppearance = !!this.appearance;
     if (this._hasAppearance) {
@@ -61616,6 +61619,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
   }) {
     const {
       color,
+      borderWidth = 0,
+      borderColor = [0, 0, 0],
+      backgroundColor = null,
       date,
       fontSize,
       oldAnnotation,
@@ -61636,7 +61642,17 @@ class FreeTextAnnotation extends MarkupAnnotation {
     freetext.set("DA", da);
     freetext.setIfDefined("Contents", stringToAsciiOrUTF16BE(value));
     freetext.setIfNotExists("F", 4);
-    freetext.setIfNotExists("Border", [0, 0, 0]);
+    freetext.set("Border", [0, 0, borderWidth]);
+    const borderStyle = new Dict(xref);
+    borderStyle.set("W", borderWidth);
+    borderStyle.set("S", Name.get("S"));
+    freetext.set("BS", borderStyle);
+    freetext.setIfArray("C", getPdfColorArray(borderColor));
+    if (backgroundColor) {
+      freetext.setIfArray("IC", getPdfColorArray(backgroundColor));
+    } else {
+      freetext.delete("IC");
+    }
     freetext.setIfNumber("Rotate", rotation);
     freetext.setIfDefined("T", stringToAsciiOrUTF16BE(user));
     if (apRef || ap) {
@@ -61654,6 +61670,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
     } = params;
     const {
       color,
+      borderWidth = 0,
+      borderColor = [0, 0, 0],
+      backgroundColor = null,
       fontSize,
       rect,
       rotation,
@@ -61685,6 +61704,9 @@ class FreeTextAnnotation extends MarkupAnnotation {
     if (rotation % 180 !== 0) {
       [w, h] = [h, w];
     }
+    const padding = borderWidth > 0 || backgroundColor ? borderWidth + 2 : 0;
+    const availableWidth = Math.max(1, w - 2 * padding);
+    const availableHeight = Math.max(1, h - 2 * padding);
     const lines = value.split("\n");
     const scale = fontSize / 1000;
     let totalWidth = -Infinity;
@@ -61703,40 +61725,47 @@ class FreeTextAnnotation extends MarkupAnnotation {
       }
       totalWidth = Math.max(totalWidth, lineWidth);
     }
-    const hscale = totalWidth > w ? w / totalWidth : 1;
+    const hscale = totalWidth > availableWidth ? availableWidth / totalWidth : 1;
     let vscale = 1;
     const lineHeight = (/* inlined export .LINE_FACTOR */1.35) * fontSize;
     const lineAscent = ((/* inlined export .LINE_FACTOR */1.35) - (/* inlined export .LINE_DESCENT_FACTOR */0.35)) * fontSize;
     const totalHeight = lineHeight * lines.length;
-    if (totalHeight > h) {
-      vscale = h / totalHeight;
+    if (totalHeight > availableHeight) {
+      vscale = availableHeight / totalHeight;
     }
     const fscale = Math.min(hscale, vscale);
     const newFontSize = fontSize * fscale;
-    let firstPoint, clipBox, matrix;
+    let clipBox, matrix;
     switch (rotation) {
       case 0:
         matrix = [1, 0, 0, 1];
         clipBox = [rect[0], rect[1], w, h];
-        firstPoint = [rect[0], rect[3] - lineAscent];
         break;
       case 90:
         matrix = [0, 1, -1, 0];
         clipBox = [rect[1], -rect[2], w, h];
-        firstPoint = [rect[1], -rect[0] - lineAscent];
         break;
       case 180:
         matrix = [-1, 0, 0, -1];
         clipBox = [-rect[2], -rect[3], w, h];
-        firstPoint = [-rect[2], -rect[1] - lineAscent];
         break;
       case 270:
         matrix = [0, -1, 1, 0];
         clipBox = [-rect[3], rect[0], w, h];
-        firstPoint = [-rect[3], rect[2] - lineAscent];
         break;
     }
-    const buffer = ["q", `${matrix.join(" ")} 0 0 cm`, `${clipBox.join(" ")} re W n`, `BT`, `${getPdfColor(color, true)}`, `0 Tc /Helv ${numberToString(newFontSize)} Tf`];
+    const [clipX, clipY, clipWidth, clipHeight] = clipBox;
+    const firstPoint = [clipX + padding, clipY + clipHeight - padding - lineAscent];
+    const buffer = ["q", `${matrix.join(" ")} 0 0 cm`, `${clipBox.join(" ")} re W n`];
+    const borderInset = borderWidth / 2;
+    const box = `${numberToString(clipX + borderInset)} ${numberToString(clipY + borderInset)} ${numberToString(Math.max(0, clipWidth - borderWidth))} ${numberToString(Math.max(0, clipHeight - borderWidth))} re`;
+    if (backgroundColor) {
+      buffer.push(getPdfColor(backgroundColor, true), box, "f");
+    }
+    if (borderWidth > 0) {
+      buffer.push(getPdfColor(borderColor, false), `${numberToString(borderWidth)} w`, box, "S");
+    }
+    buffer.push("BT", `${getPdfColor(color, true)}`, `0 Tc /Helv ${numberToString(newFontSize)} Tf`);
     buffer.push(`${firstPoint.join(" ")} Td (${escapeString(encodedLines[0])}) Tj`);
     const vShift = numberToString(lineHeight);
     for (let i = 1, ii = encodedLines.length; i < ii; i++) {

@@ -17,6 +17,7 @@
 import { join } from "node:path";
 
 import {
+  ConfigurationTarget,
   type CustomReadonlyEditorProvider,
   commands,
   type Disposable,
@@ -30,6 +31,12 @@ import {
 
 import rawViewerHtml from "../assets/pdf.js/web/viewer.html";
 import { disposeAll } from "./disposable";
+import {
+  DEFAULT_FREE_TEXT_PRESETS,
+  isFreeTextPresetUpdateMessage,
+  normalizeFreeTextPreset,
+  normalizeFreeTextPresets,
+} from "./free-text-presets";
 import { PDFDocument } from "./pdf-document";
 import { escapeAttribute } from "./utils";
 import { WebviewCollection } from "./webview-collection";
@@ -118,6 +125,31 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
     );
 
     webviewPanel.webview.onDidReceiveMessage(async (message: unknown) => {
+      if (isFreeTextPresetUpdateMessage(message)) {
+        const config = workspace.getConfiguration("pdf", document.uri);
+        const presets = normalizeFreeTextPresets(config.get<unknown>("freeTextPresets"));
+        presets[message.index] = normalizeFreeTextPreset(
+          message.preset,
+          presets[message.index] ?? DEFAULT_FREE_TEXT_PRESETS[message.index]!,
+        );
+
+        try {
+          await config.update("freeTextPresets", presets, ConfigurationTarget.Global);
+          await webviewPanel.webview.postMessage({
+            action: "freeTextPresetUpdated",
+            index: message.index,
+            preset: presets[message.index],
+          });
+        } catch (error) {
+          await webviewPanel.webview.postMessage({
+            action: "freeTextPresetUpdateFailed",
+            index: message.index,
+            message: error instanceof Error ? error.message : "Unable to save the preset.",
+          });
+        }
+        return;
+      }
+
       if (
         typeof message !== "object" ||
         message === null ||
@@ -165,6 +197,7 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
       resourceRoot: withTrailingSlash(webview.asWebviewUri(resourceRoot)),
       defaultZoomValue: config.get<string>("defaultZoomValue", "auto"),
       sidebarViewOnLoad: config.get<number>("sidebarViewOnLoad", 0),
+      freeTextPresets: normalizeFreeTextPresets(config.get<unknown>("freeTextPresets")),
       workerSrc: `${resolvePdfJsURI("build", "pdf.worker.mjs")}`,
       sandboxBundleSrc: `${resolvePdfJsURI("build", "pdf.sandbox.mjs")}`,
       cMapUrl: withTrailingSlash(resolvePdfJsURI("web", "cmaps")),
@@ -172,6 +205,11 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
       standardFontDataUrl: withTrailingSlash(resolvePdfJsURI("web", "standard_fonts")),
       wasmUrl: withTrailingSlash(resolvePdfJsURI("web", "wasm")),
       imageResourcesPath: withTrailingSlash(resolvePdfJsURI("web", "images")),
+      // VS Code's `file+` Webview resource host is not a valid Worker-side
+      // fetch origin. Keep PDF.js binary asset requests in the main Webview,
+      // where the extension resource policy can service them, and transfer
+      // the bytes to the Worker.
+      useWorkerFetch: false,
     };
 
     return viewerHtml
@@ -179,7 +217,7 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
         /* html */ "<title>PDF.js viewer</title>",
         /* html */
         `
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${cspSource} blob: data:; script-src ${cspSource} 'wasm-unsafe-eval'; worker-src ${cspSource} blob:; style-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} blob: data:; font-src ${cspSource} data:; media-src blob:; base-uri 'none'; form-action 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${cspSource} blob: data:; script-src ${cspSource} 'wasm-unsafe-eval'; worker-src ${cspSource} blob:; style-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} blob: data:; font-src ${cspSource} data:; media-src ${cspSource} blob:; base-uri 'none'; form-action 'none';">
 <meta id="pdf-view-config" data-config="${escapeAttribute(settings)}">
 
 <title>PDF.js viewer</title>

@@ -6116,6 +6116,9 @@ const AnnotationEditorParamsType = {
   FREETEXT_SIZE: 11,
   FREETEXT_COLOR: 12,
   FREETEXT_OPACITY: 13,
+  FREETEXT_BORDER_WIDTH: 14,
+  FREETEXT_BORDER_COLOR: 15,
+  FREETEXT_BACKGROUND_COLOR: 16,
   INK_COLOR: 21,
   INK_THICKNESS: 22,
   INK_OPACITY: 23,
@@ -27377,11 +27380,17 @@ class FreeTextEditor extends AnnotationEditor {
   #editorDivId = `${this.id}-editor`;
   #editModeAC = null;
   #fontSize;
+  #borderWidth;
+  #borderColor;
+  #backgroundColor;
   _colorPicker = null;
   static _freeTextDefaultContent = "";
   static _internalPadding = 0;
   static _defaultColor = null;
   static _defaultFontSize = 10;
+  static _defaultBorderWidth = 0;
+  static _defaultBorderColor = "#000000";
+  static _defaultBackgroundColor = null;
   static get _keyboardManager() {
     const proto = FreeTextEditor.prototype;
     const arrowChecker = self => self.isEmpty();
@@ -27424,6 +27433,9 @@ class FreeTextEditor extends AnnotationEditor {
     });
     this.color = params.color || FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor;
     this.#fontSize = params.fontSize || FreeTextEditor._defaultFontSize;
+    this.#borderWidth = params.borderWidth ?? FreeTextEditor._defaultBorderWidth;
+    this.#borderColor = params.borderColor || FreeTextEditor._defaultBorderColor;
+    this.#backgroundColor = params.backgroundColor ?? FreeTextEditor._defaultBackgroundColor;
     if (!this.annotationElementId) {
       this._uiManager.a11yAlert(AnnotationEditor._l10nAlert.freetext);
     }
@@ -27442,6 +27454,15 @@ class FreeTextEditor extends AnnotationEditor {
       case AnnotationEditorParamsType.FREETEXT_COLOR:
         FreeTextEditor._defaultColor = value;
         break;
+      case AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH:
+        FreeTextEditor._defaultBorderWidth = value;
+        break;
+      case AnnotationEditorParamsType.FREETEXT_BORDER_COLOR:
+        FreeTextEditor._defaultBorderColor = value;
+        break;
+      case AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR:
+        FreeTextEditor._defaultBackgroundColor = value;
+        break;
     }
   }
   updateParams(type, value) {
@@ -27452,13 +27473,22 @@ class FreeTextEditor extends AnnotationEditor {
       case AnnotationEditorParamsType.FREETEXT_COLOR:
         this.#updateColor(value);
         break;
+      case AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH:
+        this.#updateBorderWidth(value);
+        break;
+      case AnnotationEditorParamsType.FREETEXT_BORDER_COLOR:
+        this.#updateBorderColor(value);
+        break;
+      case AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR:
+        this.#updateBackgroundColor(value);
+        break;
     }
   }
   static get defaultPropertiesToUpdate() {
-    return [[AnnotationEditorParamsType.FREETEXT_SIZE, FreeTextEditor._defaultFontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor]];
+    return [[AnnotationEditorParamsType.FREETEXT_SIZE, FreeTextEditor._defaultFontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, FreeTextEditor._defaultColor || AnnotationEditor._defaultLineColor], [AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH, FreeTextEditor._defaultBorderWidth], [AnnotationEditorParamsType.FREETEXT_BORDER_COLOR, FreeTextEditor._defaultBorderColor], [AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR, FreeTextEditor._defaultBackgroundColor]];
   }
   get propertiesToUpdate() {
-    return [[AnnotationEditorParamsType.FREETEXT_SIZE, this.#fontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, this.color]];
+    return [[AnnotationEditorParamsType.FREETEXT_SIZE, this.#fontSize], [AnnotationEditorParamsType.FREETEXT_COLOR, this.color], [AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH, this.#borderWidth], [AnnotationEditorParamsType.FREETEXT_BORDER_COLOR, this.#borderColor], [AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR, this.#backgroundColor]];
   }
   get toolbarButtons() {
     this._colorPicker ||= new BasicColorPicker(this);
@@ -27502,6 +27532,67 @@ class FreeTextEditor extends AnnotationEditor {
       post: this._uiManager.updateUI.bind(this._uiManager, this),
       mustExec: true,
       type: AnnotationEditorParamsType.FREETEXT_COLOR,
+      overwriteIfSameType: true,
+      keepUndo: true
+    });
+  }
+  #applyBoxStyle() {
+    if (!this.editorDiv) {
+      return;
+    }
+    const style = this.editorDiv.style;
+    const hasBox = this.#borderWidth > 0 || this.#backgroundColor !== null;
+    style.boxSizing = "border-box";
+    style.padding = hasBox ? `calc(${FreeTextEditor._internalPadding}px * var(--total-scale-factor))` : "";
+    style.border = this.#borderWidth > 0 ? `calc(${this.#borderWidth}px * var(--total-scale-factor)) solid ${this.#borderColor}` : "none";
+    style.backgroundColor = this.#backgroundColor || "transparent";
+  }
+  #updateBorderWidth(borderWidth) {
+    const setBorderWidth = value => {
+      this.#borderWidth = value;
+      this.#applyBoxStyle();
+      this.#setEditorDimensions();
+    };
+    const savedBorderWidth = this.#borderWidth;
+    this.addCommands({
+      cmd: setBorderWidth.bind(this, borderWidth),
+      undo: setBorderWidth.bind(this, savedBorderWidth),
+      post: this._uiManager.updateUI.bind(this._uiManager, this),
+      mustExec: true,
+      type: AnnotationEditorParamsType.FREETEXT_BORDER_WIDTH,
+      overwriteIfSameType: true,
+      keepUndo: true
+    });
+  }
+  #updateBorderColor(borderColor) {
+    const setBorderColor = value => {
+      this.#borderColor = value;
+      this.#applyBoxStyle();
+    };
+    const savedBorderColor = this.#borderColor;
+    this.addCommands({
+      cmd: setBorderColor.bind(this, borderColor),
+      undo: setBorderColor.bind(this, savedBorderColor),
+      post: this._uiManager.updateUI.bind(this._uiManager, this),
+      mustExec: true,
+      type: AnnotationEditorParamsType.FREETEXT_BORDER_COLOR,
+      overwriteIfSameType: true,
+      keepUndo: true
+    });
+  }
+  #updateBackgroundColor(backgroundColor) {
+    const setBackgroundColor = value => {
+      this.#backgroundColor = value;
+      this.#applyBoxStyle();
+      this.#setEditorDimensions();
+    };
+    const savedBackgroundColor = this.#backgroundColor;
+    this.addCommands({
+      cmd: setBackgroundColor.bind(this, backgroundColor),
+      undo: setBackgroundColor.bind(this, savedBackgroundColor),
+      post: this._uiManager.updateUI.bind(this._uiManager, this),
+      mustExec: true,
+      type: AnnotationEditorParamsType.FREETEXT_BACKGROUND_COLOR,
       overwriteIfSameType: true,
       keepUndo: true
     });
@@ -27734,6 +27825,7 @@ class FreeTextEditor extends AnnotationEditor {
     } = this.editorDiv;
     style.fontSize = `calc(${this.#fontSize}px * var(--total-scale-factor))`;
     style.color = this.color;
+    this.#applyBoxStyle();
     this.div.append(this.editorDiv);
     this.overlayDiv = document.createElement("div");
     this.overlayDiv.classList.add("overlay", "enabled");
@@ -27902,7 +27994,10 @@ class FreeTextEditor extends AnnotationEditor {
           richText,
           contentsObj,
           creationDate,
-          modificationDate
+          modificationDate,
+          borderStyle,
+          color: annotationColor,
+          backgroundColor
         },
         textContent,
         textPosition,
@@ -27919,6 +28014,9 @@ class FreeTextEditor extends AnnotationEditor {
         annotationType: AnnotationEditorType.FREETEXT,
         color: Array.from(fontColor),
         fontSize,
+        borderWidth: borderStyle?.width || 0,
+        borderColor: Array.from(annotationColor || [0, 0, 0]),
+        backgroundColor: backgroundColor ? Array.from(backgroundColor) : null,
         value: textContent.join("\n"),
         position: textPosition,
         pageIndex: pageNumber - 1,
@@ -27937,6 +28035,9 @@ class FreeTextEditor extends AnnotationEditor {
     const editor = await super.deserialize(data, parent, uiManager);
     editor.#fontSize = data.fontSize;
     editor.color = Util.makeHexColor(...data.color);
+    editor.#borderWidth = data.borderWidth ?? 0;
+    editor.#borderColor = Util.makeHexColor(...(data.borderColor || [0, 0, 0]));
+    editor.#backgroundColor = data.backgroundColor ? Util.makeHexColor(...data.backgroundColor) : null;
     editor.#content = FreeTextEditor.#deserializeContent(data.value);
     editor._initialData = initialData;
     if (data.comment) {
@@ -27952,9 +28053,14 @@ class FreeTextEditor extends AnnotationEditor {
       return this.serializeDeleted();
     }
     const color = AnnotationEditor._colorManager.convert(this.isAttachedToDOM ? getComputedStyle(this.editorDiv).color : this.color);
+    const borderColor = AnnotationEditor._colorManager.convert(this.#borderColor);
+    const backgroundColor = this.#backgroundColor ? AnnotationEditor._colorManager.convert(this.#backgroundColor) : null;
     const serialized = Object.assign(super.serialize(isForCopying), {
       color,
       fontSize: this.#fontSize,
+      borderWidth: this.#borderWidth,
+      borderColor,
+      backgroundColor,
       value: this.#serializeContent()
     });
     this.addComment(serialized);
@@ -27973,9 +28079,13 @@ class FreeTextEditor extends AnnotationEditor {
       value,
       fontSize,
       color,
+      borderWidth,
+      borderColor,
+      backgroundColor,
       pageIndex
     } = this._initialData;
-    return this.hasEditedComment || this._hasBeenMoved || serialized.value !== value || serialized.fontSize !== fontSize || serialized.color.some((c, i) => c !== color[i]) || serialized.pageIndex !== pageIndex;
+    const hasDifferentBackground = backgroundColor === null ? serialized.backgroundColor !== null : serialized.backgroundColor === null || serialized.backgroundColor.some((c, i) => c !== backgroundColor[i]);
+    return this.hasEditedComment || this._hasBeenMoved || serialized.value !== value || serialized.fontSize !== fontSize || serialized.color.some((c, i) => c !== color[i]) || serialized.borderWidth !== borderWidth || serialized.borderColor.some((c, i) => c !== borderColor[i]) || hasDifferentBackground || serialized.pageIndex !== pageIndex;
   }
   renderAnnotationElement(annotation) {
     const content = super.renderAnnotationElement(annotation);
@@ -27987,6 +28097,10 @@ class FreeTextEditor extends AnnotationEditor {
     } = content;
     style.fontSize = `calc(${this.#fontSize}px * var(--total-scale-factor))`;
     style.color = this.color;
+    style.boxSizing = "border-box";
+    style.padding = `calc(${FreeTextEditor._internalPadding}px * var(--total-scale-factor))`;
+    style.border = this.#borderWidth > 0 ? `calc(${this.#borderWidth}px * var(--total-scale-factor)) solid ${this.#borderColor}` : "none";
+    style.backgroundColor = this.#backgroundColor || "transparent";
     content.replaceChildren();
     for (const line of this.#content.split("\n")) {
       const div = document.createElement("div");
