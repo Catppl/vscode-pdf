@@ -1,5 +1,7 @@
 # Visual Studio Code PDF Viewer
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A lightweight, reliable PDF viewer for Visual Studio Code, powered by [Mozilla PDF.js](https://mozilla.github.io/pdf.js/).
 
 **GitHub**: [mathematic-inc/vscode-pdf](https://github.com/mathematic-inc/vscode-pdf)
