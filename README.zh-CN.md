@@ -16,7 +16,7 @@
 4. 选择 `vscode-pdf-0.2.8-freetext-presets.vsix`。
 5. 安装完成后执行 **Developer: Reload Window**，或关闭并重新打开 PDF。
 
-本版本的安装声明为 VS Code `^1.120.0`，因此公司的 VS Code 1.133 在安装版本范围内。扩展基于 PDF.js 6.2.108。
+本版本兼容 VS Code `^1.120.0`（即 1.120.0 及以上的兼容 1.x 版本）。扩展基于 PDF.js 6.2.108。
 
 如果安装后仍然看不到新按钮，通常是旧的 Extension Host 或旧的 PDF 标签页仍在运行。请先关闭旧 PDF 标签页，再 Reload Window 后重新打开。
 
