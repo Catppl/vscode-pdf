@@ -33,6 +33,14 @@ export class WebviewCollection {
     }
   }
 
+  /** Iterate over all currently active webviews and their resource keys. */
+  *entries(): Iterable<{
+    readonly resource: string;
+    readonly webviewPanel: WebviewPanel;
+  }> {
+    yield* this._webviews;
+  }
+
   /** Add a new webview to the collection. */
   add(uri: Uri, webviewPanel: WebviewPanel) {
     const entry = { resource: uri.toString(), webviewPanel };

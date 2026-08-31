@@ -14,6 +14,9 @@ const main = read("assets/main.mjs");
 const commentSearchUi = read("assets/comment-search-ui.mjs");
 const freeTextPresets = read("assets/free-text-presets.mjs");
 const freeTextPresetModel = read("assets/free-text-preset-model.mjs");
+const pdfjsBridge = read("assets/pdfjs-bridge.mjs");
+const annotationTransfer = read("assets/annotation-transfer.mjs");
+const annotationTransferManager = read("src/annotation-transfer-manager.ts");
 const mainCss = read("assets/main.css");
 const patch = read("patches/pdf.js.patch");
 
@@ -69,6 +72,8 @@ for (const snippet of [
 assert.ok(main.includes("event.origin !== window.origin"), "Missing message origin guard");
 assert.ok(main.includes("./comment-search-ui.mjs"), "Missing comment-search UI module");
 assert.ok(main.includes("./free-text-presets.mjs"), "Missing FreeText preset module");
+assert.ok(main.includes("./pdfjs-bridge.mjs"), "Missing shared PDF.js bridge module");
+assert.ok(main.includes("./annotation-transfer.mjs"), "Missing annotation transfer module");
 assert.ok(
   main.includes('container: document.querySelector("#outerContainer")'),
   "Comment results must be mounted in the viewer shell",
@@ -111,6 +116,9 @@ for (const token of [
   "freeTextPresetButton",
   "freeTextPresetPreview",
   "freeTextPresetDialog",
+  "annotationTransferModeButton",
+  "annotationTransferAvailable",
+  "annotationTransferHint",
 ]) {
   assert.ok(mainCss.includes(token), `Missing search UI style: ${token}`);
 }
@@ -167,6 +175,38 @@ for (const token of [
 for (const token of ["DEFAULT_PRESETS", "normalizePreset", "stylesEqual", "backgroundColor"]) {
   assert.ok(freeTextPresetModel.includes(token), `Missing preset model token: ${token}`);
 }
+
+for (const token of ["serializeSelectedEditorForExternalCopy", "pasteSerializedEditorAt"]) {
+  assert.ok(pdfMjs.includes(token), `Missing external annotation adapter: ${token}`);
+  assert.ok(patch.includes(token), `External annotation adapter is absent from patch: ${token}`);
+  assert.ok(pdfjsBridge.includes(token), `Shared PDF.js bridge is missing adapter use: ${token}`);
+}
+for (const token of [
+  "annotationTransferModeSet",
+  "annotationCopyStart",
+  "annotationDropRequest",
+  "annotationDropCommit",
+  "annotationDropResult",
+]) {
+  assert.ok(
+    `${provider}\n${annotationTransfer}\n${annotationTransferManager}`.includes(token),
+    `Missing annotation transfer protocol token: ${token}`,
+  );
+}
+for (const token of [
+  "Continuous cross-PDF FreeText copy",
+  "annotationTransferModeButton",
+  "AnnotationTransferDocumentRole",
+  "canUseDocumentAsTransferRole",
+  "serializeSelectedAnnotationForCopy",
+  "insertSerializedAnnotationAt",
+]) {
+  assert.ok(annotationTransfer.includes(token), `Missing continuous-copy behavior: ${token}`);
+}
+assert.ok(
+  !annotationTransfer.includes("dataTransfer"),
+  "Continuous copy must not depend on cross-Webview HTML DataTransfer",
+);
 
 const localeRoot = join(root, "assets/pdf.js/web/locale");
 const locales = Object.values(JSON.parse(read("assets/pdf.js/web/locale/locale.json")));

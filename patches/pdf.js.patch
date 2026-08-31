@@ -12,7 +12,77 @@ index d4faaba..bb91718 100644
    INK_COLOR: 21,
    INK_THICKNESS: 22,
    INK_OPACITY: 23,
-@@ -27377,11 +27380,17 @@ class FreeTextEditor extends AnnotationEditor {
+@@ -9458,6 +9461,69 @@ class AnnotationEditorUIManager {
+     }
+     event.clipboardData.setData("application/pdfjs", JSON.stringify(editors));
+   }
++  serializeSelectedEditorForExternalCopy(clientX, clientY) {
++    if (this.#selectedEditors.size !== 1) {
++      return null;
++    }
++    const editor = this.firstSelectedEditor;
++    if (editor.mode !== AnnotationEditorType.FREETEXT || editor.isInEditMode() || !editor.div) {
++      return null;
++    }
++    const payload = editor.serialize(true);
++    if (!payload) {
++      return null;
++    }
++    const { left, top, width, height } = editor.div.getBoundingClientRect();
++    const clamp = value => Math.min(1, Math.max(0, value));
++    const hasPointer = Number.isFinite(clientX) && Number.isFinite(clientY);
++    return {
++      payload,
++      grabOffset: {
++        x: hasPointer && width > 0 ? clamp((clientX - left) / width) : 0.5,
++        y: hasPointer && height > 0 ? clamp((clientY - top) / height) : 0.5
++      }
++    };
++  }
++  async pasteSerializedEditorAt(data, pageIndex, rect) {
++    if (data?.annotationType !== AnnotationEditorType.FREETEXT || !Number.isInteger(pageIndex) || pageIndex < 0 || !Array.isArray(rect) || rect.length !== 4 || !rect.every(Number.isFinite)) {
++      return false;
++    }
++    await this.updateMode(AnnotationEditorType.FREETEXT);
++    await this.waitForEditorsRendered(pageIndex + 1);
++    const layer = this.getLayer(pageIndex);
++    if (!layer) {
++      return false;
++    }
++    const copiedData = structuredClone(data);
++    copiedData.pageIndex = pageIndex;
++    copiedData.rect = rect.slice(0);
++    copiedData.isCopy = true;
++    delete copiedData.annotationElementId;
++    delete copiedData.id;
++    this.unselectAll();
++    try {
++      const editor = await layer.deserialize(copiedData);
++      if (!editor) {
++        return false;
++      }
++      const cmd = () => {
++        this.#addEditorToLayer(editor);
++        this.#selectEditors([editor]);
++      };
++      const undo = () => {
++        editor.remove();
++      };
++      this.addCommands({
++        cmd,
++        undo,
++        mustExec: true
++      });
++      return true;
++    } catch (ex) {
++      warn(`pasteSerializedEditorAt: "${ex.message}".`);
++      return false;
++    }
++  }
+   cut(event) {
+     this.copy(event);
+     this.delete();
+@@ -27377,11 +27442,17 @@ class FreeTextEditor extends AnnotationEditor {
    #editorDivId = `${this.id}-editor`;
    #editModeAC = null;
    #fontSize;

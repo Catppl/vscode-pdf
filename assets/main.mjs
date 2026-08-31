@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+import { AnnotationTransferController } from "./annotation-transfer.mjs";
 import { createCommentMatchHighlighter, createCommentResultsPanel } from "./comment-search-ui.mjs";
 import { CommentSearchController, FIND_STATE } from "./comment-search.mjs";
 import { FreeTextPresetController } from "./free-text-presets.mjs";
 import { PDFViewerApplicationOptions } from "./pdf.js/web/viewer.mjs";
+import { PDFJSBridge } from "./pdfjs-bridge.mjs";
 
 function loadConfig() {
   const elem = document.querySelector("#pdf-view-config");
@@ -307,10 +309,16 @@ void (async () => {
   installCommentSearch();
   await window.PDFViewerApplication.open(config);
   await window.PDFViewerApplication.pdfViewer.pagesPromise;
-  new FreeTextPresetController({
-    app: window.PDFViewerApplication,
+  const app = window.PDFViewerApplication;
+  const bridge = new PDFJSBridge(app);
+  const freeTextPresets = new FreeTextPresetController({
+    app,
+    bridge,
     presets: config.freeTextPresets,
   }).initialize();
+  bridge.setFreeTextStyleGetter(() => freeTextPresets.getCurrentStyle());
+  bridge.installGlobal();
+  new AnnotationTransferController({ app, bridge }).initialize();
   const [, hash] = config.url.split("#");
   if (hash) {
     window.PDFViewerApplication.pdfLinkService.setHash(decodeURIComponent(hash));

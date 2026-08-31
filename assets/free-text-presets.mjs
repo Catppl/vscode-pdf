@@ -6,7 +6,7 @@ import {
   normalizePreset,
   stylesEqual,
 } from "./free-text-preset-model.mjs";
-import { AnnotationEditorParamsType, AnnotationEditorType } from "./pdf.js/build/pdf.mjs";
+import { AnnotationEditorParamsType } from "./pdf.js/build/pdf.mjs";
 
 const PARAM_TO_STYLE = new Map([
   [AnnotationEditorParamsType.FREETEXT_SIZE, "fontSize"],
@@ -22,6 +22,7 @@ function formatBackground(color) {
 
 export class FreeTextPresetController {
   #app;
+  #bridge;
   #presets;
   #buttons = [];
   #container = null;
@@ -31,8 +32,9 @@ export class FreeTextPresetController {
   #currentStyle = cloneStyle(DEFAULT_PRESETS[3]);
   #abortController = new AbortController();
 
-  constructor({ app, presets }) {
+  constructor({ app, bridge, presets }) {
     this.#app = app;
+    this.#bridge = bridge;
     this.#presets = normalizeFreeTextPresets(presets);
   }
 
@@ -54,7 +56,6 @@ export class FreeTextPresetController {
 
     this.#createDialog();
     this.renderPresets();
-    this.#installBridge();
 
     const signal = this.#abortController.signal;
     this.#app.eventBus.on("switchannotationeditorparams", this.#onParamSwitched, {
@@ -108,7 +109,7 @@ export class FreeTextPresetController {
     if (!preset) {
       return;
     }
-    window.VSCodePDFBridge.setFreeTextStyle(preset, true);
+    this.#bridge.setFreeTextStyle(preset, true);
   }
 
   editPreset(index) {
@@ -140,7 +141,7 @@ export class FreeTextPresetController {
     this.#presets[index] = preset;
     this.renderPresets();
     if (wasActive) {
-      window.VSCodePDFBridge.setFreeTextStyle(preset, false);
+      this.#bridge.setFreeTextStyle(preset, false);
     }
     this.#app.pdfLinkService.postMessage({
       type: "updateFreeTextPreset",
@@ -166,6 +167,10 @@ export class FreeTextPresetController {
     }
   }
 
+  getCurrentStyle() {
+    return cloneStyle(this.#currentStyle);
+  }
+
   destroy() {
     this.#abortController.abort();
     this.#dialog?.remove();
@@ -173,45 +178,6 @@ export class FreeTextPresetController {
     this.#dialog = null;
     this.#form = null;
     this.#container = null;
-    if (window.VSCodePDFBridge?.owner === this) {
-      delete window.VSCodePDFBridge;
-    }
-  }
-
-  #installBridge() {
-    window.VSCodePDFBridge = Object.freeze({
-      owner: this,
-      setFreeTextStyle: (style, activate = false) => {
-        const normalized = normalizePreset(
-          { ...style, name: "Current" },
-          {
-            name: "Current",
-            ...this.#currentStyle,
-          },
-        );
-        this.#currentStyle = cloneStyle(normalized);
-        const eventBus = this.#app.eventBus;
-        for (const [type, key] of PARAM_TO_STYLE) {
-          eventBus.dispatch("switchannotationeditorparams", {
-            source: this,
-            type,
-            value: normalized[key],
-          });
-        }
-        eventBus.dispatch("annotationeditorparamschanged", {
-          source: this,
-          details: [...PARAM_TO_STYLE].map(([type, key]) => [type, normalized[key]]),
-        });
-        this.updateActiveState();
-        if (activate) {
-          eventBus.dispatch("switchannotationeditormode", {
-            source: this,
-            mode: AnnotationEditorType.FREETEXT,
-          });
-        }
-      },
-      getFreeTextStyle: () => cloneStyle(this.#currentStyle),
-    });
   }
 
   #onParamSwitched = (event) => {

@@ -375,13 +375,98 @@ body.vscode-high-contrast {
   border: 1px solid ButtonBorder;
 }
 
+html.annotationTransferAvailable .page {
+  cursor: copy;
+}
+
+html.annotationTransferAvailable .page:hover {
+  outline: 2px solid #ffd400;
+  outline-offset: -2px;
+}
+
+html.annotationTransferCommitting .page {
+  cursor: progress;
+}
+
+.annotationTransferModeButton {
+  position: fixed;
+  z-index: 100001;
+  inset-inline-end: 14px;
+  inset-block-end: 14px;
+  display: inline-flex;
+  min-width: 46px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--toolbarButton-border, rgb(127 127 127 / 0.45));
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.annotationTransferModeButton:hover {
+  background: var(--toolbarButton-hover-background, rgb(127 127 127 / 0.2));
+}
+
+.annotationTransferModeButton:focus-visible,
+.annotationTransferModeButton.active {
+  outline: 2px solid var(--focus-ring-color, #0060df);
+  outline-offset: 1px;
+}
+
+.annotationTransferModeButton.active {
+  background: #fff4a8;
+  color: #111;
+  border-color: #b89b00;
+}
+
+#annotationTransferHint {
+  position: fixed;
+  z-index: 100000;
+  inset-inline-start: 50%;
+  inset-block-end: 18px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 7px 12px;
+  color: #111;
+  background: #fff4a8;
+  border: 1px solid #b89b00;
+  border-radius: 4px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.25);
+  font: message-box;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+#annotationTransferHint.error {
+  color: #fff;
+  background: #b3261e;
+  border-color: #7f1d17;
+}
+
 @media (forced-colors: active) {
   .freeTextPresetButton:focus-visible,
-  .freeTextPresetButton.active {
+  .freeTextPresetButton.active,
+  .annotationTransferModeButton:focus-visible,
+  .annotationTransferModeButton.active {
     outline-color: Highlight;
   }
 
   .freeTextPresetPreview.transparent {
     background: Canvas;
+  }
+
+  html.annotationTransferAvailable .page {
+    outline-color: Highlight;
+  }
+
+  #annotationTransferHint {
+    color: CanvasText;
+    background: Canvas;
+    border-color: CanvasText;
   }
 }

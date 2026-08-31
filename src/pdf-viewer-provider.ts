@@ -30,6 +30,11 @@ import {
 } from "vscode";
 
 import rawViewerHtml from "../assets/pdf.js/web/viewer.html";
+import {
+  AnnotationTransferManager,
+  type AnnotationTransferMessage,
+  parseAnnotationTransferMessage,
+} from "./annotation-transfer-manager";
 import { disposeAll } from "./disposable";
 import {
   DEFAULT_FREE_TEXT_PRESETS,
@@ -73,6 +78,12 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
 
   /** Tracks all known webviews */
   private readonly webviews = new WebviewCollection();
+
+  /** Holds the single in-memory cross-PDF annotation transfer session. */
+  private readonly annotationTransfers = new AnnotationTransferManager();
+
+  /** Shared opt-in state for continuous cross-PDF copy across open viewers. */
+  private annotationTransferModeEnabled = false;
 
   private readonly extensionRoot: Uri;
 
@@ -124,6 +135,19 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
       resourceRoot,
     );
 
+    webviewPanel.onDidDispose(() => {
+      const cancelled = this.annotationTransfers.cancelForUri(document.uri.toString());
+      if (cancelled) {
+        void this.broadcastAnnotationTransfer({
+          action: "annotationTransferCleared",
+          transferId: cancelled.id,
+        });
+      }
+      if (Array.from(this.webviews.entries()).length === 0) {
+        this.annotationTransferModeEnabled = false;
+      }
+    });
+
     webviewPanel.webview.onDidReceiveMessage(async (message: unknown) => {
       if (isFreeTextPresetUpdateMessage(message)) {
         const config = workspace.getConfiguration("pdf", document.uri);
@@ -147,6 +171,16 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
             message: error instanceof Error ? error.message : "Unable to save the preset.",
           });
         }
+        return;
+      }
+
+      const annotationTransferMessage = parseAnnotationTransferMessage(message);
+      if (annotationTransferMessage) {
+        await this.handleAnnotationTransferMessage(
+          annotationTransferMessage,
+          document,
+          webviewPanel,
+        );
         return;
       }
 
@@ -181,6 +215,133 @@ export class PDFViewerProvider implements CustomReadonlyEditorProvider {
         // Ignore malformed or non-local messages from the webview.
       }
     });
+  }
+
+  private async handleAnnotationTransferMessage(
+    message: AnnotationTransferMessage,
+    document: PDFDocument,
+    webviewPanel: WebviewPanel,
+  ): Promise<void> {
+    const resource = document.uri.toString();
+    switch (message.type) {
+      case "annotationTransferReady": {
+        await webviewPanel.webview.postMessage({
+          action: "annotationTransferModeChanged",
+          enabled: this.annotationTransferModeEnabled,
+        });
+        const active = this.annotationTransfers.getActiveTransfer();
+        if (active) {
+          await webviewPanel.webview.postMessage(
+            active.sourceUri === resource
+              ? {
+                  action: "annotationTransferSourceReady",
+                  transferId: active.id,
+                }
+              : {
+                  action: "annotationTransferAvailable",
+                  transferId: active.id,
+                  annotationType: active.annotationType,
+                  placementMode: "click",
+                },
+          );
+        }
+        return;
+      }
+      case "annotationTransferModeSet": {
+        this.annotationTransferModeEnabled = message.enabled;
+        const cancelled = this.annotationTransfers.cancelTransfer();
+        if (cancelled) {
+          await this.broadcastAnnotationTransfer({
+            action: "annotationTransferCleared",
+            transferId: cancelled.id,
+          });
+        }
+        await this.broadcastAnnotationTransfer({
+          action: "annotationTransferModeChanged",
+          enabled: message.enabled,
+        });
+        return;
+      }
+      case "annotationCopyStart": {
+        if (!this.annotationTransferModeEnabled) {
+          await webviewPanel.webview.postMessage({
+            action: "annotationTransferRejected",
+            transferId: message.transferId,
+          });
+          return;
+        }
+        const previous = this.annotationTransfers.getActiveTransfer();
+        const session = this.annotationTransfers.startTransfer(message, resource);
+        if (!session) {
+          await webviewPanel.webview.postMessage({
+            action: "annotationTransferRejected",
+            transferId: message.transferId,
+          });
+          return;
+        }
+        if (previous && previous.id !== session.id) {
+          await this.broadcastAnnotationTransfer({
+            action: "annotationTransferCleared",
+            transferId: previous.id,
+          });
+        }
+        await webviewPanel.webview.postMessage({
+          action: "annotationTransferSourceReady",
+          transferId: session.id,
+        });
+        await this.broadcastAnnotationTransfer(
+          {
+            action: "annotationTransferAvailable",
+            transferId: session.id,
+            annotationType: session.annotationType,
+            placementMode: "click",
+          },
+          resource,
+        );
+        return;
+      }
+      case "annotationDropRequest": {
+        const session = this.annotationTransfers.beginCommit(message.transferId, resource);
+        if (!session) {
+          await webviewPanel.webview.postMessage({
+            action: "annotationTransferRejected",
+            transferId: message.transferId,
+          });
+          return;
+        }
+        await webviewPanel.webview.postMessage({
+          action: "annotationDropCommit",
+          transferId: session.id,
+          payload: session.payload,
+          grabOffset: session.grabOffset,
+        });
+        return;
+      }
+      case "annotationDropResult": {
+        const completed = this.annotationTransfers.completeTransfer(message.transferId, resource);
+        if (completed) {
+          await this.broadcastAnnotationTransfer({
+            action: "annotationTransferCleared",
+            transferId: completed.id,
+            dropSuccess: message.success,
+          });
+        }
+        return;
+      }
+    }
+  }
+
+  private async broadcastAnnotationTransfer(
+    message: Record<string, unknown>,
+    excludedResource?: string,
+  ): Promise<void> {
+    const deliveries: Thenable<boolean>[] = [];
+    for (const { resource, webviewPanel } of this.webviews.entries()) {
+      if (resource !== excludedResource) {
+        deliveries.push(webviewPanel.webview.postMessage(message));
+      }
+    }
+    await Promise.allSettled(deliveries);
   }
 
   private getHtmlForWebview(document: PDFDocument, webview: Webview, resourceRoot: Uri): string {
