@@ -181,6 +181,11 @@ for (const token of ["serializeSelectedEditorForExternalCopy", "pasteSerializedE
   assert.ok(patch.includes(token), `External annotation adapter is absent from patch: ${token}`);
   assert.ok(pdfjsBridge.includes(token), `Shared PDF.js bridge is missing adapter use: ${token}`);
 }
+assert.ok(pdfMjs.includes("applyExternalCopyStyle"), "Missing external annotation style adapter");
+assert.ok(
+  patch.includes("applyExternalCopyStyle"),
+  "External annotation style adapter is absent from patch",
+);
 for (const token of [
   "annotationTransferModeSet",
   "annotationCopyStart",
@@ -198,6 +203,8 @@ for (const token of [
   "annotationTransferModeButton",
   "AnnotationTransferDocumentRole",
   "canUseDocumentAsTransferRole",
+  "beginExternalCopyMode",
+  "endExternalCopyMode",
   "serializeSelectedAnnotationForCopy",
   "insertSerializedAnnotationAt",
 ]) {

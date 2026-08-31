@@ -93,9 +93,6 @@ export class AnnotationTransferController {
       () => {
         const enabled = !this.#modeEnabled;
         this.#startSelectedWhenEnabled = enabled;
-        if (enabled) {
-          this.#bridge.activateFreeTextMode();
-        }
         this.#postMessage({ type: "annotationTransferModeSet", enabled });
       },
       { signal: this.#abortController.signal },
@@ -162,7 +159,7 @@ export class AnnotationTransferController {
         if (typeof message.enabled !== "boolean") {
           return;
         }
-        this.#setModeEnabled(message.enabled);
+        await this.#setModeEnabled(message.enabled);
         if (message.enabled && this.#startSelectedWhenEnabled) {
           this.#startSelectedWhenEnabled = false;
           setTimeout(() => this.#stageSelectedAnnotation(), 0);
@@ -281,7 +278,7 @@ export class AnnotationTransferController {
     });
   }
 
-  #setModeEnabled(enabled) {
+  async #setModeEnabled(enabled) {
     this.#modeEnabled = enabled;
     this.#button?.classList.toggle("active", enabled);
     this.#button?.setAttribute("aria-pressed", `${enabled}`);
@@ -290,8 +287,10 @@ export class AnnotationTransferController {
       this.#startSelectedWhenEnabled = false;
       this.#documentRole = null;
       this.#clearTransferState();
+      await this.#bridge.endExternalCopyMode();
       return;
     }
+    await this.#bridge.beginExternalCopyMode();
     if (!this.#sourceTransferId && !this.#activeTransferId) {
       this.#setHint("Continuous copy is on — select a source FreeText. Esc exits.");
     }

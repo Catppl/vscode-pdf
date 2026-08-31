@@ -1,7 +1,7 @@
 {
   "name": "vscode-pdf",
   "displayName": "PDF Viewer",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "Portable document format (PDF) viewer for Visual Studio Code.",
   "categories": [
     "Visualization",
@@ -31,7 +31,7 @@
     "lint": "oxlint --deny-warnings .",
     "package": "pnpm run check:pdfjs && tsup --minify",
     "test:comment-search": "node --test tools/comment-search.test.mjs",
-    "test:annotation-transfer": "node --experimental-strip-types --test tools/annotation-transfer-manager.test.mjs && node --test tools/annotation-transfer-geometry.test.mjs tools/annotation-transfer-role.test.mjs",
+    "test:annotation-transfer": "node --experimental-strip-types --test tools/annotation-transfer-manager.test.mjs && node --test tools/annotation-transfer-geometry.test.mjs tools/annotation-transfer-role.test.mjs tools/pdfjs-bridge.test.mjs",
     "test:free-text-presets": "node --test tools/free-text-presets.test.mjs tools/free-text-pdf-persistence.test.mjs",
     "prepare": "if [ -z \"$CI\" ] && command -v hk >/dev/null 2>&1; then hk install; fi",
     "typecheck": "tsc --noEmit",

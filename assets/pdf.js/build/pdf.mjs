@@ -9506,6 +9506,7 @@ class AnnotationEditorUIManager {
       if (!editor) {
         return false;
       }
+      editor.applyExternalCopyStyle(copiedData);
       const cmd = () => {
         this.#addEditorToLayer(editor);
         this.#selectEditors([editor]);
@@ -28107,6 +28108,26 @@ class FreeTextEditor extends AnnotationEditor {
       editor.setCommentData(data);
     }
     return editor;
+  }
+  applyExternalCopyStyle(data) {
+    if (Number.isFinite(data.fontSize) && data.fontSize > 0) {
+      this.#fontSize = data.fontSize;
+    }
+    if (Array.isArray(data.color) && data.color.length === 3) {
+      this.color = Util.makeHexColor(...data.color);
+    }
+    if (Number.isFinite(data.borderWidth) && data.borderWidth >= 0) {
+      this.#borderWidth = data.borderWidth;
+    }
+    if (Array.isArray(data.borderColor) && data.borderColor.length === 3) {
+      this.#borderColor = Util.makeHexColor(...data.borderColor);
+    }
+    if (data.backgroundColor === null) {
+      this.#backgroundColor = null;
+    } else if (Array.isArray(data.backgroundColor) && data.backgroundColor.length === 3) {
+      this.#backgroundColor = Util.makeHexColor(...data.backgroundColor);
+    }
+    this.#applyBoxStyle();
   }
   serialize(isForCopying = false) {
     if (this.isEmpty()) {

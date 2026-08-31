@@ -13,6 +13,7 @@ const STYLE_PARAMS = [
 export class PDFJSBridge {
   #app;
   #getFreeTextStyle = () => cloneStyle(DEFAULT_PRESETS[3]);
+  #externalCopyPreviousMode;
 
   constructor(app) {
     this.#app = app;
@@ -53,11 +54,33 @@ export class PDFJSBridge {
     return cloneStyle(this.#getFreeTextStyle());
   }
 
-  activateFreeTextMode() {
-    this.#app.eventBus.dispatch("switchannotationeditormode", {
-      source: this,
-      mode: AnnotationEditorType.FREETEXT,
-    });
+  async beginExternalCopyMode() {
+    const uiManager = this.#uiManager();
+    if (!uiManager) {
+      return false;
+    }
+    this.#externalCopyPreviousMode ??= uiManager.getMode();
+    if (uiManager.getMode() !== AnnotationEditorType.FREETEXT) {
+      await uiManager.updateMode(AnnotationEditorType.FREETEXT);
+    }
+    return true;
+  }
+
+  async endExternalCopyMode() {
+    const uiManager = this.#uiManager();
+    const previousMode = this.#externalCopyPreviousMode;
+    this.#externalCopyPreviousMode = undefined;
+    if (!uiManager || previousMode === undefined) {
+      return;
+    }
+    // If the user explicitly changed tools while copy mode was active, keep
+    // their new choice instead of restoring stale state.
+    if (
+      uiManager.getMode() === AnnotationEditorType.FREETEXT &&
+      previousMode !== AnnotationEditorType.FREETEXT
+    ) {
+      await uiManager.updateMode(previousMode);
+    }
   }
 
   serializeSelectedAnnotationForCopy(clientX, clientY) {
@@ -96,7 +119,8 @@ export class PDFJSBridge {
       owner: this,
       setFreeTextStyle: this.setFreeTextStyle.bind(this),
       getFreeTextStyle: this.getFreeTextStyle.bind(this),
-      activateFreeTextMode: this.activateFreeTextMode.bind(this),
+      beginExternalCopyMode: this.beginExternalCopyMode.bind(this),
+      endExternalCopyMode: this.endExternalCopyMode.bind(this),
       serializeSelectedAnnotationForCopy: this.serializeSelectedAnnotationForCopy.bind(this),
       insertSerializedAnnotationAt: this.insertSerializedAnnotationAt.bind(this),
     });
